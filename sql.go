@@ -45,6 +45,18 @@ const (
 							AND dir.path = ?
 							AND meta.name = ?`
 
+	sqlGetFileContents = `SELECT
+							file.contents
+						FROM
+							meta,
+							dir,
+							file
+						WHERE
+							meta.parent = dir.inode
+							AND file.inode = meta.inode
+							AND dir.path = ?
+							AND meta.name = ?`
+
 	sqlGetDirInode    = `SELECT inode FROM dir WHERE path = ?`
 	sqlGetDirContents = `SELECT mode, inode, name FROM meta WHERE parent = ?`
 )
