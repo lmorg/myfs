@@ -6,16 +6,17 @@ import (
 	"github.com/hanwen/go-fuse/fuse/pathfs"
 	"log"
 	"strings"
+	"time"
 )
 
 type filesystem struct {
 	pathfs.FileSystem
 }
 
-func (fs *filesystem) GetAttr(pathfile string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
-	// Separate file name from path
+// SplitPath separates file name from path
+func SplitPath(pathfile string) (path, file string) {
 	split := strings.Split(pathfile, "/")
-	var path, file string
+
 	switch {
 	case len(split) == 1:
 		file = split[0]
@@ -23,6 +24,12 @@ func (fs *filesystem) GetAttr(pathfile string, context *fuse.Context) (*fuse.Att
 		file = split[len(split)-1]
 		path = strings.Join(split[:len(split)-1], "/")
 	}
+
+	return
+}
+
+func (fs *filesystem) GetAttr(pathfile string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
+	path, file := SplitPath(pathfile)
 
 	// Get file metadata
 	row := db.QueryRow(sqlGetMetaAttr, path, file)
@@ -34,7 +41,7 @@ func (fs *filesystem) GetAttr(pathfile string, context *fuse.Context) (*fuse.Att
 	attr := new(fuse.Attr)
 	err := row.Scan(&attr.Ino, &attr.Atime, &attr.Ctime, &attr.Mtime, &attr.Uid, &attr.Gid, &attr.Size, &attr.Mode)
 	if err != nil {
-		log.Println("Error scanning sqlGetMetaAttr:", err)
+		log.Println("Error scanning sqlGetMetaAttr:", err, pathfile)
 		return nil, fuse.ENOENT
 	}
 
@@ -85,42 +92,50 @@ func (fs *filesystem) OpenDir(path string, context *fuse.Context) (dir []fuse.Di
 }
 
 func (fs *filesystem) Open(path string, flags uint32, context *fuse.Context) (file nodefs.File, code fuse.Status) {
-	/*if flags&fuse.O_ANYWRITE != 0 {
+	if flags&fuse.O_ANYWRITE != 0 {
 		return nil, fuse.EPERM
 	}
 
-	// root files
-	if FileHierarchy[path].Size != 0 {
-		return nodefs.NewDataFile(FileHierarchy[path].Content), fuse.OK
-	}
+	return nil, fuse.ENOENT
+}
 
-	// the only other files are in tier 3,
-	// so exit if anything other than 3rd tier
-	split := strings.Split(path, "/")
-	if len(split) != 3 {
+func (fs *filesystem) Create(pathfile string, flags uint32, mode uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
+	path, file := SplitPath(pathfile)
+
+	log.Println("Create flags:", flags)
+
+	// Get inode of parent directory
+	row := db.QueryRow(sqlGetDirInode, path)
+	if row == nil {
+		log.Println("Nothing returned from sqlGetDirInode")
 		return nil, fuse.ENOENT
 	}
 
-	if DirHierarchy[split[0]].Leases != nil &&
-		DirHierarchy[split[0]].Rx.MatchString(split[1]) {
+	var parent uint64
+	err := row.Scan(&parent)
+	if err != nil {
+		log.Println("Error scanning sqlGetDirInode:", err)
+		return nil, fuse.ENOENT
+	}
 
-		leases, err := DirHierarchy[split[0]].Leases()
-		if err != nil {
-			return nil, fuse.ENOENT
-		}
+	epoch := time.Now().UnixNano()
+	result, err := db.Exec(sqlInsertMeta, epoch, epoch, epoch, context.Uid, context.Gid, 0, mode, file, parent)
+	if err != nil {
+		log.Println("Error sqlInsertMeta:", err)
+		return nil, fuse.ENOENT
+	}
 
-		if leases[split[1]].IP != "" &&
-			LeaseHierarchy[split[2]].Size != 0 {
+	inode, err := result.LastInsertId()
+	if err != nil {
+		log.Println("Error getting inode of sqlInsertMeta:", err)
+		return nil, fuse.ENOENT
+	}
 
-			f := leases[split[1]].Property(split[2])
-			if f == nil {
-				return nil, fuse.ENOENT
-			}
+	_, err = db.Exec(sqlInsertFile, inode, "")
+	if err != nil {
+		log.Println("Could not initialise dir table:", err)
+		return nil, fuse.ENOENT
+	}
 
-			return nodefs.NewDataFile(f.Content), fuse.OK
-
-		}
-	}*/
-
-	return nil, fuse.ENOENT
+	return nodefs.NewDataFile([]byte{}), fuse.OK
 }

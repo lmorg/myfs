@@ -27,7 +27,7 @@ func mysql3Mount() {
 		log.Fatalln("Could not create table:", err)
 	}
 
-	if _, err = db.Exec(sqlCreateDataTable); err != nil {
+	if _, err = db.Exec(sqlCreateFileTable); err != nil {
 		log.Fatalln("Could not create table:", err)
 	}
 

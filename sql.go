@@ -15,9 +15,9 @@ const (
 							parent		INT
 						);`
 
-	sqlCreateDataTable = `CREATE TABLE IF NOT EXISTS data (
+	sqlCreateFileTable = `CREATE TABLE IF NOT EXISTS file (
 							inode       INT PRIMARY KEY,
-							data		BLOB
+							contents	BLOB
 						);`
 
 	sqlCreateDirTable = `CREATE TABLE IF NOT EXISTS dir (
@@ -67,6 +67,17 @@ const (
                             values
                                 (
                                     ?, ?, ?, ?, ?, ?, ?, ?, ?
+                                )`
+
+	sqlInsertFile = `INSERT INTO
+                            file
+                                (
+										inode,
+										contents
+                                )
+                            values
+                                (
+                                    ?, ?
                                 )`
 
 	sqlInsertDir = `INSERT INTO
