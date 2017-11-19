@@ -41,12 +41,12 @@ const (
 							meta,
 							dir
 						WHERE
-							meta.inode = dir.inode
+							meta.parent = dir.inode
 							AND dir.path = ?
 							AND meta.name = ?`
 
 	sqlGetDirInode    = `SELECT inode FROM dir WHERE path = ?`
-	sqlGetDirContents = `SELECT mode, inode, name FROM meta WHERE inode = ?`
+	sqlGetDirContents = `SELECT mode, inode, name FROM meta WHERE parent = ?`
 )
 
 // Modify:
@@ -90,4 +90,15 @@ const (
                                 (
                                     ?, ?
                                 )`
+
+	sqlUpdateTime = `UPDATE
+							meta,
+							dir
+						SET
+							meta.atime = ?,
+							meta.mtime = ?
+						WHERE
+							meta.parent = dir.inode
+							AND dir.path = ?
+							AND meta.name = ?`
 )

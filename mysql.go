@@ -35,8 +35,8 @@ func mysql3Mount() {
 		log.Fatalln("Could not create table:", err)
 	}
 
-	epoch := time.Now().UnixNano()
-	if _, err = db.Exec(sqlInsertMeta, epoch, epoch, epoch, 0, 0, 0, fuse.S_IFDIR|0777, "", 0); err != nil {
+	epoch := time.Now().Unix()
+	if _, err = db.Exec(sqlInsertMeta, epoch, epoch, epoch, 0, 0, 0, fuse.S_IFDIR|0777, "", 1); err != nil {
 		if !strings.HasPrefix(err.Error(), "Error 1062") {
 			log.Fatalln("Could not initialise meta table:", err)
 		}

@@ -45,6 +45,8 @@ func (fs *filesystem) GetAttr(pathfile string, context *fuse.Context) (*fuse.Att
 		return nil, fuse.ENOENT
 	}
 
+	//log.Println(attr)
+
 	return attr, fuse.OK
 }
 
@@ -118,7 +120,7 @@ func (fs *filesystem) Create(pathfile string, flags uint32, mode uint32, context
 		return nil, fuse.ENOENT
 	}
 
-	epoch := time.Now().UnixNano()
+	epoch := time.Now().Unix()
 	result, err := db.Exec(sqlInsertMeta, epoch, epoch, epoch, context.Uid, context.Gid, 0, mode, file, parent)
 	if err != nil {
 		log.Println("Error sqlInsertMeta:", err)
@@ -137,5 +139,17 @@ func (fs *filesystem) Create(pathfile string, flags uint32, mode uint32, context
 		return nil, fuse.ENOENT
 	}
 
-	return nodefs.NewDataFile([]byte{}), fuse.OK
+	f := nodefs.NewDataFile([]byte{})
+	return f, fuse.OK
+}
+
+func (fs *filesystem) Utimens(pathfile string, Atime *time.Time, Mtime *time.Time, context *fuse.Context) (code fuse.Status) {
+	path, file := SplitPath(pathfile)
+
+	_, err := db.Exec(sqlUpdateTime, Atime.Unix(), Mtime.Unix(), path, file)
+	if err != nil {
+		return fuse.ENOENT
+	}
+
+	return fuse.OK
 }
