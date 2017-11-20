@@ -1,35 +1,16 @@
-package main
-
-// Initialisation:
-const (
-	sqlCreateMetaTable = `CREATE TABLE IF NOT EXISTS meta (
-							inode       INT AUTO_INCREMENT PRIMARY KEY,
-							atime       INT,
-							ctime       INT,
-							mtime       INT,
-							uid			INT,
-							gid			INT,
-							size		INT,
-							mode		INT,
-							name		VARCHAR(767) UNIQUE,
-							parent		INT
-						);`
-
-	sqlCreateFileTable = `CREATE TABLE IF NOT EXISTS file (
-							inode       INT PRIMARY KEY,
-							contents	BLOB
-						);`
-
-	sqlCreateDirTable = `CREATE TABLE IF NOT EXISTS dir (
-							inode       INT PRIMARY KEY,
-							path		VARCHAR(10000)
-						);`
-)
+package sql
 
 // Query:
 const (
-	sqlGetMetaAttr = `SELECT
-							meta.inode,
+	GetFileInode = `SELECT
+							meta.inode
+						FROM
+							meta
+						WHERE
+							meta.parent = ?
+							AND meta.name = ?`
+
+	GetFileAttr = `SELECT
 							meta.atime,
 							meta.ctime,
 							meta.mtime,
@@ -38,32 +19,24 @@ const (
 							meta.size,
 							meta.mode
 						FROM
-							meta,
-							dir
+							meta
 						WHERE
-							meta.parent = dir.inode
-							AND dir.path = ?
-							AND meta.name = ?`
+							meta.inode = ?`
 
-	sqlGetFileContents = `SELECT
+	GetFileContents = `SELECT
 							file.contents
 						FROM
-							meta,
-							dir,
 							file
 						WHERE
-							meta.parent = dir.inode
-							AND file.inode = meta.inode
-							AND dir.path = ?
-							AND meta.name = ?`
+							file.inode = ?`
 
-	sqlGetDirInode    = `SELECT inode FROM dir WHERE path = ?`
-	sqlGetDirContents = `SELECT mode, inode, name FROM meta WHERE parent = ?`
+	//GetDirInode    = `SELECT inode FROM dir WHERE path = ?`
+	GetDirContents = `SELECT inode, name FROM meta WHERE parent = ?`
 )
 
 // Modify:
 const (
-	sqlInsertMeta = `INSERT INTO
+	InsertMeta = `INSERT INTO
                             meta
                                 (
 										atime,
@@ -81,7 +54,7 @@ const (
                                     ?, ?, ?, ?, ?, ?, ?, ?, ?
                                 )`
 
-	sqlInsertFile = `INSERT INTO
+	InsertFile = `INSERT INTO
                             file
                                 (
 										inode,
@@ -92,7 +65,7 @@ const (
                                     ?, ?
                                 )`
 
-	sqlInsertDir = `INSERT INTO
+	InsertDir = `INSERT INTO
                             dir
                                 (
 										inode,
@@ -103,7 +76,7 @@ const (
                                     ?, ?
                                 )`
 
-	sqlUpdateTime = `UPDATE
+	UpdateTime = `UPDATE
 							meta,
 							dir
 						SET

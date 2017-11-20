@@ -1,17 +1,19 @@
-package main
+package filesystem
 
 import (
 	"github.com/hanwen/go-fuse/fuse"
 	"github.com/hanwen/go-fuse/fuse/nodefs"
+	"github.com/lmorg/godbfs/fusefile"
+	"github.com/lmorg/godbfs/sql"
 	"log"
 )
 
 // OpenDir scans a directory for contents
-func (fs *filesystem) OpenDir(path string, context *fuse.Context) (dir []fuse.DirEntry, code fuse.Status) {
+func (fs *Fs) OpenDir(path string, context *fuse.Context) (dir []fuse.DirEntry, code fuse.Status) {
 	log.Println("OpenDir:", path)
 
 	// Get inode of directory
-	row := db.QueryRow(sqlGetDirInode, path)
+	row := Db.QueryRow(sql.GetDirInode, path)
 	if row == nil {
 		log.Println("Nothing returned from sqlGetDirInode")
 		return nil, fuse.ENOENT
@@ -25,7 +27,7 @@ func (fs *filesystem) OpenDir(path string, context *fuse.Context) (dir []fuse.Di
 	}
 
 	// Get directory contents
-	rows, err := db.Query(sqlGetDirContents, inode)
+	rows, err := Db.Query(sql.GetDirContents, inode)
 	if err != nil || rows == nil {
 		log.Println("Error querying sqlGetDirContents:", err)
 		return nil, fuse.ENOENT
@@ -51,27 +53,29 @@ func (fs *filesystem) OpenDir(path string, context *fuse.Context) (dir []fuse.Di
 }
 
 // Open a file
-func (fs *filesystem) Open(pathfile string, flags uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
+func (fs *Fs) Open(pathfile string, flags uint32, context *fuse.Context) (nodefs.File, fuse.Status) {
 	//if flags&fuse.O_ANYWRITE != 0 {
 	//	return nil, fuse.EPERM
 	//}
 
 	path, file := SplitPath(pathfile)
 
-	row := db.QueryRow(sqlGetFileContents, path, file)
+	row := Db.QueryRow(sql.GetFileContents, path, file)
 	if row == nil {
 		log.Println("sqlGetFileContents returned nothing")
 		return nil, fuse.ENOENT
 	}
 
 	var b []byte
-	err := row.Scan(&b)
+	var inode uint64
+	err := row.Scan(&inode, &b)
 	if err != nil {
 		log.Println("Error scanning sqlGetFileContents:", err, pathfile)
 		return nil, fuse.ENOENT
 	}
 
-	f := nodefs.NewDataFile(b)
-	log.Println("content:", f.String())
+	//f := nodefs.NewDataFile(b)
+	//log.Println("content:", f.String())
+	f := fusefile.NewFile(inode)
 	return f, fuse.OK
 }

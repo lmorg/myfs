@@ -1,45 +1,50 @@
 package main
 
 import (
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
+	_ "bazil.org/fuse/fs/fstestutil"
 	"flag"
-	"github.com/hanwen/go-fuse/fuse/nodefs"
-	"github.com/hanwen/go-fuse/fuse/pathfs"
+	"github.com/lmorg/godbfs/file"
+	"github.com/lmorg/godbfs/filesystem"
+	"github.com/lmorg/godbfs/sql"
 	"log"
 	"os"
 )
 
-var (
-	fMountPoint string
-)
-
 func main() {
-	Flags()
-	Mount()
-}
-
-func Flags() {
-	flag.StringVar(&fMountPoint, "m", "", "mount point")
-
 	flag.Parse()
 
-	if fMountPoint == "" {
+	if flag.NArg() != 1 {
 		flag.Usage()
-		os.Exit(1)
+		os.Exit(2)
 	}
-}
+	mountpoint := flag.Arg(0)
 
-func Mount() error {
-	mysql3Mount()
+	db := sql.InitDb()
+	filesystem.Db = db
+	file.Db = db
 
-	vfs := pathfs.NewPathNodeFs(
-		&filesystem{FileSystem: pathfs.NewDefaultFileSystem()}, nil,
+	c, err := fuse.Mount(
+		mountpoint,
+		fuse.FSName("godbfs"),
+		fuse.Subtype("mysqlfs"),
+		fuse.LocalVolume(),
+		fuse.VolumeName("volume"),
 	)
-
-	server, _, err := nodefs.MountRoot(fMountPoint, vfs.Root(), nil)
 	if err != nil {
-		log.Fatalf("Mount failed (%s): %v\n", fMountPoint, err)
+		log.Fatal(err)
 	}
-	server.Serve()
+	defer c.Close()
 
-	return nil
+	err = fs.Serve(c, filesystem.Fs{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// check if the mount process has an error to report
+	<-c.Ready
+	if err := c.MountError; err != nil {
+		log.Fatal(err)
+	}
 }

@@ -1,15 +1,11 @@
-package main
+package filesystem
 
 import (
 	"github.com/hanwen/go-fuse/fuse"
-	"github.com/hanwen/go-fuse/fuse/pathfs"
+	"github.com/lmorg/godbfs/sql"
 	"log"
 	"strings"
 )
-
-type filesystem struct {
-	pathfs.FileSystem
-}
 
 // SplitPath separates file name from path
 func SplitPath(pathfile string) (path, file string) {
@@ -26,11 +22,11 @@ func SplitPath(pathfile string) (path, file string) {
 	return
 }
 
-func (fs *filesystem) GetAttr(pathfile string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
+func (fs *Fs) GetAttr(pathfile string, context *fuse.Context) (*fuse.Attr, fuse.Status) {
 	path, file := SplitPath(pathfile)
 
 	// Get file metadata
-	row := db.QueryRow(sqlGetMetaAttr, path, file)
+	row := Db.QueryRow(sql.GetMetaAttr, path, file)
 	if row == nil {
 		log.Println("sqlGetMetaAttr returned nothing")
 		return nil, fuse.ENOENT
