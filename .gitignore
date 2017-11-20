@@ -1,5 +1,6 @@
 .idea/
 /godbfs
 /godbfs.exe
-/godbfs.db
+/myfs
+/myfs.exe
 /mnt/
