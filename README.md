@@ -1,3 +1,3 @@
-# godbfs
+# myfs
 
 MySQL-backed FUSE filesystem
