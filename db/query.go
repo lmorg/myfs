@@ -1,4 +1,4 @@
-package sql
+package db
 
 import (
 	"database/sql"
@@ -13,10 +13,33 @@ import (
 */
 
 type query struct {
-	row  *sql.Row
-	rows *sql.Rows
-	err  error
-	sql  string
+	Row    *sql.Row
+	Rows   *sql.Rows
+	result sql.Result
+	Err    error
+	Sql    string
+	Inode  int64
+}
+
+/////////////
+// Execute //
+/////////////
+
+func Execute(sql string, params ...interface{}) (sql.Result, error) { return db.Exec(sql, params) }
+
+func Insert(sql string, params ...interface{}) *query {
+	q := new(query)
+	q.Sql = sql
+
+	q.result, q.Err = db.Exec(sql, params...)
+	if q.Err != nil {
+		log.Printf("Error executing SQL: %s (%s)", q.Err, q.Sql)
+		return q
+	}
+
+	q.Inode, q.Err = q.result.LastInsertId()
+
+	return q
 }
 
 ////////////////
@@ -26,11 +49,11 @@ type query struct {
 // QueryRec is an embeddable SQL query
 func QueryRec(sql string, params ...interface{}) *query {
 	q := new(query)
-	q.sql = sql
+	q.Sql = sql
 
-	q.row = db.QueryRow(sql, params...)
+	q.Row = db.QueryRow(sql, params...)
 
-	if q.row == nil {
+	if q.Row == nil {
 		log.Println("SQL returned nothing:", sql, params)
 	}
 
@@ -39,13 +62,13 @@ func QueryRec(sql string, params ...interface{}) *query {
 
 // ScanRec returns the results for a single row SQL query
 func ScanRec(q *query, params ...interface{}) error {
-	if q.row == nil {
+	if q.Row == nil {
 		return errors.New("no data returned")
 	}
 
-	err := q.row.Scan(params...)
+	err := q.Row.Scan(params...)
 	if err != nil {
-		log.Printf("Error single-row scanning: %s (%s)", err, q.sql)
+		log.Printf("Error single-row scanning: %s (%s)", err, q.Sql)
 		return err
 	}
 
@@ -59,11 +82,11 @@ func ScanRec(q *query, params ...interface{}) error {
 // QueryRows is for multi-row SQL queries
 func QueryRows(sql string, params ...interface{}) *query {
 	q := new(query)
-	q.sql = sql
+	q.Sql = sql
 
-	q.rows, q.err = db.Query(sql, params...)
-	if q.err != nil {
-		log.Println("SQL returned an error:", q.err, sql, params)
+	q.Rows, q.Err = db.Query(sql, params...)
+	if q.Err != nil {
+		log.Println("SQL returned an error:", q.Err, sql, params)
 	}
 
 	return q
@@ -71,14 +94,14 @@ func QueryRows(sql string, params ...interface{}) *query {
 
 // ScanRows returns the results of a multi-row SQL query via the callback function
 func ScanRows(q *query, callback func(), params ...interface{}) error {
-	if q.err != nil {
-		return q.err
+	if q.Err != nil {
+		return q.Err
 	}
 
-	for q.rows.Next() {
-		err := q.rows.Scan(params...)
+	for q.Rows.Next() {
+		err := q.Rows.Scan(params...)
 		if err != nil {
-			log.Printf("Error multi-row scanning: %s (%s)", err, q.sql)
+			log.Printf("Error multi-row scanning: %s (%s)", err, q.Sql)
 			return err
 		}
 
