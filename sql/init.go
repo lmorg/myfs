@@ -10,6 +10,8 @@ import (
 	"time"
 )
 
+var db *sql.DB
+
 // Initialisation:
 const (
 	CreateMetaTable = `CREATE TABLE IF NOT EXISTS meta (
@@ -21,7 +23,7 @@ const (
 							gid			INT,
 							size		INT,
 							mode		INT,
-							name		VARCHAR(767) UNIQUE,
+							name		VARCHAR(191) UNIQUE,
 							parent		INT
 						);`
 
@@ -36,27 +38,29 @@ const (
 						);`
 )
 
-func InitDb() (db *sql.DB) {
+func InitDb() {
 	var err error
 
-	log.Println("Opening database")
+	conn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
+		"myfs", "qwerty", "localhost", 3306, "myfs")
 
-	db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%d)/%s",
-		"godbfs", "FbLeX26D8X8VCdqI", "192.168.1.203", 3306, "godbfs"))
+	log.Println("Opening database:", conn)
+
+	db, err = sql.Open("mysql", conn)
 	if err != nil {
 		log.Fatalln("Could not open database:", err)
 	}
 
 	if _, err = db.Exec(CreateMetaTable); err != nil {
-		log.Fatalln("Could not create table:", err)
+		log.Fatalln("(CreateMetaTable):", err, CreateMetaTable)
 	}
 
 	if _, err = db.Exec(CreateFileTable); err != nil {
-		log.Fatalln("Could not create table:", err)
+		log.Fatalln("(CreateFileTable):", err)
 	}
 
 	if _, err = db.Exec(CreateDirTable); err != nil {
-		log.Fatalln("Could not create table:", err)
+		log.Fatalln("(CreateDirTable):", err)
 	}
 
 	epoch := time.Now().Unix()

@@ -5,9 +5,8 @@ import (
 	"bazil.org/fuse/fs"
 	_ "bazil.org/fuse/fs/fstestutil"
 	"flag"
-	"github.com/lmorg/godbfs/file"
-	"github.com/lmorg/godbfs/filesystem"
-	"github.com/lmorg/godbfs/sql"
+	"github.com/lmorg/myfs/filesystem"
+	"github.com/lmorg/myfs/sql"
 	"log"
 	"os"
 )
@@ -21,9 +20,7 @@ func main() {
 	}
 	mountpoint := flag.Arg(0)
 
-	db := sql.InitDb()
-	filesystem.Db = db
-	file.Db = db
+	sql.InitDb()
 
 	c, err := fuse.Mount(
 		mountpoint,
